@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login & Signup</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Login Form -->
@@ -23,7 +26,7 @@
                 <button type="submit" class="btn">Login</button>
             </form>
             <p class="toggle-text">
-                Don't have an account? 
+                Don't have an account?
                 <a href="#" onclick="toggleForms()">Sign up</a>
             </p>
         </div>
@@ -47,12 +50,15 @@
                 <button type="submit" class="btn">Sign Up</button>
             </form>
             <p class="toggle-text">
-                Already have an account? 
+                Already have an account?
                 <a href="#" onclick="toggleForms()">Login</a>
             </p>
         </div>
     </div>
 
+    <script src="js/utils/notifications.js"></script>
+    <script src="js/utils/loader.js"></script>
     <script src="js/auth.js"></script>
 </body>
+
 </html>

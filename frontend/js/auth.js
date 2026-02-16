@@ -17,12 +17,31 @@ function handleLogin(event) {
     // Basic validation (in a real app, you'd send this to a server)
     console.log('Login attempt:', { email, password });
 
-    // Store user session (simple localStorage for demo)
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('isLoggedIn', 'true');
+    // Show loading
+    if (typeof loader !== 'undefined') {
+        loader.show('Logging in...');
+    }
 
-    // Redirect to hostels page
-    window.location.href = 'hostels.html';
+    // Simulate API call
+    setTimeout(() => {
+        // Store user session (simple localStorage for demo)
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('isLoggedIn', 'true');
+
+        if (typeof loader !== 'undefined') {
+            loader.hide();
+        }
+
+        // Show success toast
+        if (typeof toast !== 'undefined') {
+            toast.success('Welcome back!', 'Login successful', 2000);
+        }
+
+        // Redirect to hostels page
+        setTimeout(() => {
+            window.location.href = 'hostels.html';
+        }, 500);
+    }, 800);
 }
 
 // Handle signup form submission
@@ -36,11 +55,30 @@ function handleSignup(event) {
     // Basic validation (in a real app, you'd send this to a server)
     console.log('Signup attempt:', { name, email, password });
 
-    // Store user session (simple localStorage for demo)
-    localStorage.setItem('userName', name);
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('isLoggedIn', 'true');
+    // Show loading
+    if (typeof loader !== 'undefined') {
+        loader.show('Creating account...');
+    }
 
-    // Redirect to hostels page
-    window.location.href = 'hostels.html';
+    // Simulate API call
+    setTimeout(() => {
+        // Store user session (simple localStorage for demo)
+        localStorage.setItem('userName', name);
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('isLoggedIn', 'true');
+
+        if (typeof loader !== 'undefined') {
+            loader.hide();
+        }
+
+        // Show success toast
+        if (typeof toast !== 'undefined') {
+            toast.success('Account created!', 'Welcome to Havenly', 2000);
+        }
+
+        // Redirect to hostels page
+        setTimeout(() => {
+            window.location.href = 'hostels.html';
+        }, 500);
+    }, 800);
 }
