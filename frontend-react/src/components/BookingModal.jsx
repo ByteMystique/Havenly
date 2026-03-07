@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
+import { createBooking } from "../api/bookings";
 
 export default function BookingModal({ hostel, isOpen, onClose }) {
   const toast = useToast();
@@ -30,40 +31,46 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
     }
   }, [checkIn, checkOut, hostel?.price]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const total = Math.ceil((days / 30) * hostel.price);
 
-    const booking = {
-      id: Date.now(),
-      hostelId: hostel.id,
-      hostelName: hostel.name,
-      checkIn,
-      checkOut,
-      roomType,
-      specialRequests,
-      totalAmount: total,
-      status: 'pending',
-      bookedAt: new Date().toISOString(),
-    };
+    try {
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      const total = Math.ceil((days / 30) * hostel.price);
 
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    bookings.push(booking);
-    localStorage.setItem('bookings', JSON.stringify(bookings));
+      const bookingData = {
+        user_id: "demo-user", // temporary until auth is implemented
+        hostel_id: hostel.id,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests: 1
+      };
 
-    toast.success(
-      'Booking Confirmed!',
-      `Total: ₹${total.toLocaleString()}. Check your dashboard for details.`,
-      3000
-    );
+      await createBooking(bookingData);
 
-    onClose();
-    setTimeout(() => {
-      window.location.href = '/dashboard';
-    }, 1000);
+      toast.success(
+        'Booking Confirmed!',
+        `Total: ₹${total.toLocaleString()}. Check your dashboard for details.`,
+        3000
+      );
+
+      onClose();
+
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
+
+    } catch (err) {
+      console.error(err);
+
+      toast.error(
+        'Booking Failed',
+        'Please try again later.',
+        3000
+      );
+    }
   };
 
   if (!isOpen || !hostel) return null;
@@ -75,6 +82,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
           &times;
         </span>
         <h2>Book Your Stay</h2>
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="checkIn">Check-in Date</label>
@@ -87,6 +95,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               required
             />
           </div>
+
           <div className="form-group">
             <label htmlFor="checkOut">Check-out Date</label>
             <input
@@ -98,6 +107,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               required
             />
           </div>
+
           <div className="form-group">
             <label htmlFor="roomType">Room Type</label>
             <select
@@ -113,6 +123,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               <option value="quad">Quad Sharing</option>
             </select>
           </div>
+
           <div className="form-group">
             <label htmlFor="specialRequests">Special Requests (Optional)</label>
             <textarea
@@ -123,20 +134,24 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               onChange={(e) => setSpecialRequests(e.target.value)}
             ></textarea>
           </div>
+
           <div className="booking-summary">
             <div className="summary-row">
               <span>Duration:</span>
               <span>{duration}</span>
             </div>
+
             <div className="summary-row">
               <span>Monthly Rate:</span>
               <span>₹{hostel.price.toLocaleString()}</span>
             </div>
+
             <div className="summary-row total">
               <span>Total Amount:</span>
               <span>{totalAmount}</span>
             </div>
           </div>
+
           <button type="submit" className="btn-primary">
             Confirm Booking
           </button>

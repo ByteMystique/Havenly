@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import hostels from '../data/hostels';
 import { formatDate, formatRoomType } from '../utils/helpers';
+import { getUserBookings, deleteBooking } from '../api/bookings';
 
 export default function DashboardPage() {
   const { isLoggedIn, displayName } = useAuth();
@@ -19,8 +20,39 @@ export default function DashboardPage() {
       navigate('/');
       return;
     }
-    setBookings(JSON.parse(localStorage.getItem('bookings') || '[]'));
+
+    async function loadBookings() {
+      try {
+        const data = await getUserBookings("demo-user");
+
+        const mapped = data.map((b) => {
+          const hostel = hostels.find((h) => h.id === b.hostel_id);
+
+          return {
+            id: b.id,
+            hostelId: b.hostel_id,
+            hostelName: hostel?.name || "Hostel",
+            checkIn: b.check_in,
+            checkOut: b.check_out,
+            roomType: "single",
+            specialRequests: "",
+            totalAmount: hostel?.price || 0,
+            status: "pending",
+            bookedAt: b.created_at
+          };
+        });
+
+        setBookings(mapped);
+
+      } catch (err) {
+        console.error("Failed to load bookings", err);
+      }
+    }
+
+    loadBookings();
+
     setFavoriteIds(JSON.parse(localStorage.getItem('favorites') || '[]'));
+
   }, [isLoggedIn, navigate]);
 
   const sortedBookings = [...bookings].sort(
@@ -29,14 +61,28 @@ export default function DashboardPage() {
 
   const favoriteHostels = hostels.filter((h) => favoriteIds.includes(h.id));
 
-  const cancelBooking = (id) => {
+  const cancelBooking = async (id) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-    const updated = bookings.map((b) =>
-      b.id === id ? { ...b, status: 'cancelled' } : b
-    );
-    setBookings(updated);
-    localStorage.setItem('bookings', JSON.stringify(updated));
-    toast.warning('Booking Cancelled', 'Your booking has been cancelled successfully.', 3000);
+
+    try {
+      await deleteBooking(id);
+
+      setBookings((prev) => prev.filter((b) => b.id !== id));
+
+      toast.warning(
+        'Booking Cancelled',
+        'Your booking has been cancelled successfully.',
+        3000
+      );
+
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        'Cancellation Failed',
+        'Unable to cancel booking.',
+        3000
+      );
+    }
   };
 
   const removeFavorite = (e, id) => {
