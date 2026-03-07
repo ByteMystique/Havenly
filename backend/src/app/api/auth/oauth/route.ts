@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { corsHeaders } from "@/lib/cors";
 
 export async function GET() {
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -10,8 +11,15 @@ export async function GET() {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 400, headers: corsHeaders }
+    );
   }
 
   return NextResponse.redirect(data.url);
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders });
 }

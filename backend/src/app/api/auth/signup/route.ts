@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { corsHeaders } from "@/lib/cors";
 
 export async function POST(req: Request) {
   const { email, password } = await req.json();
@@ -12,9 +13,16 @@ export async function POST(req: Request) {
   if (error) {
     return NextResponse.json(
       { error: error.message },
-      { status: 400 }
+      { status: 400, headers: corsHeaders }
     );
   }
 
-  return NextResponse.json({ user: data.user });
+  return NextResponse.json(
+    { user: data.user },
+    { headers: corsHeaders }
+  );
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders });
 }

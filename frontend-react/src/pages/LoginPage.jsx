@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { login as apiLogin, signup as apiSignup } from "../api/auth";
 import Loader from '../components/Loader';
 
 export default function LoginPage() {
@@ -24,23 +25,37 @@ export default function LoginPage() {
   // validation helper
   const emailRegex =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setLoadingText('Logging in...');
-    setLoading(true);
-    if (!emailRegex.test(loginEmail)) {
-      toast.error("Invalid Email", "Enter a valid email");
-      return;
-      }
-    setTimeout(() => {
-      login(loginEmail);
-      setLoading(false);
-      toast.success('Welcome back!', 'Login successful', 2000);
-      setTimeout(() => navigate('/hostels'), 500);
-    }, 800);
-  };
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-const handleSignup = (e) => {
+  if (!emailRegex.test(loginEmail)) {
+    toast.error("Invalid Email", "Enter a valid email");
+    return;
+  }
+
+  try {
+    setLoadingText("Logging in...");
+    setLoading(true);
+
+    await apiLogin({
+      email: loginEmail,
+      password: loginPassword
+    });
+
+    login(loginEmail);
+
+    toast.success("Welcome back!", "Login successful", 2000);
+
+    setTimeout(() => navigate("/hostels"), 500);
+
+  } catch (err) {
+    toast.error("Login Failed", err.message || "Invalid credentials");
+  } finally {
+    setLoading(false);
+  }
+ };
+
+const handleSignup = async (e) => {
   e.preventDefault();
 
   if (!emailRegex.test(signupEmail)) {
@@ -56,18 +71,31 @@ const handleSignup = (e) => {
     return;
   }
 
-  setLoadingText("Creating account...");
-  setLoading(true);
+  try {
+    setLoadingText("Creating account...");
+    setLoading(true);
 
-  setTimeout(() => {
+    await apiSignup({
+      email: signupEmail,
+      password: signupPassword
+    });
+
     signup(signupName, signupEmail);
-    setLoading(false);
 
-    toast.success("Account created!", "Welcome to Havenly", 2000);
+    toast.success(
+      "Account created!",
+      "Check your email to verify your account",
+      3000
+    );
 
     setTimeout(() => navigate("/hostels"), 500);
-  }, 800);
-  };
+
+  } catch (err) {
+    toast.error("Signup Failed", err.message || "Unable to create account");
+  } finally {
+    setLoading(false);
+  }
+};
 
   function validatePassword(password) {
   const strong =
