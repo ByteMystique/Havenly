@@ -21,11 +21,17 @@ export default function LoginPage() {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
 
+  // validation helper
+  const emailRegex =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleLogin = (e) => {
     e.preventDefault();
     setLoadingText('Logging in...');
     setLoading(true);
-
+    if (!emailRegex.test(loginEmail)) {
+      toast.error("Invalid Email", "Enter a valid email");
+      return;
+      }
     setTimeout(() => {
       login(loginEmail);
       setLoading(false);
@@ -34,18 +40,41 @@ export default function LoginPage() {
     }, 800);
   };
 
-  const handleSignup = (e) => {
-    e.preventDefault();
-    setLoadingText('Creating account...');
-    setLoading(true);
+const handleSignup = (e) => {
+  e.preventDefault();
 
-    setTimeout(() => {
-      signup(signupName, signupEmail);
-      setLoading(false);
-      toast.success('Account created!', 'Welcome to Havenly', 2000);
-      setTimeout(() => navigate('/hostels'), 500);
-    }, 800);
+  if (!emailRegex.test(signupEmail)) {
+    toast.error("Invalid Email", "Please enter a valid email address");
+    return;
+  }
+
+  if (!validatePassword(signupPassword)) {
+    toast.error(
+      "Weak Password",
+      "Password must be 8+ chars with upper, lower and number"
+    );
+    return;
+  }
+
+  setLoadingText("Creating account...");
+  setLoading(true);
+
+  setTimeout(() => {
+    signup(signupName, signupEmail);
+    setLoading(false);
+
+    toast.success("Account created!", "Welcome to Havenly", 2000);
+
+    setTimeout(() => navigate("/hostels"), 500);
+  }, 800);
   };
+
+  function validatePassword(password) {
+  const strong =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+  return strong.test(password);
+  }
 
   return (
     <div className="auth-page">
