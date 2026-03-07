@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { corsHeaders } from "@/lib/cors"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,18 +17,26 @@ export async function GET() {
     if (error) {
       return NextResponse.json(
         { success: false, error: error.message },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
-    return NextResponse.json({
-      success: true,
-      data
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        data
+      },
+      { headers: corsHeaders }
+    )
+
   } catch (err) {
     return NextResponse.json(
       { success: false, error: "Server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders })
 }

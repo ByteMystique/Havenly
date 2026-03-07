@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import hostels from '../data/hostels';
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "../components/Header";
+import { getHostels } from "../api/hostels";
 
 export default function HostelsPage() {
   const navigate = useNavigate();
@@ -10,6 +10,8 @@ export default function HostelsPage() {
   const [maxDistance, setMaxDistance] = useState('all');
   const [sortBy, setSortBy] = useState('default');
   const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [hostels, setHostels] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const toggleAmenity = (amenity) => {
     setSelectedAmenities((prev) =>
@@ -24,6 +26,22 @@ export default function HostelsPage() {
     setSortBy('default');
     setSelectedAmenities([]);
   };
+
+
+  useEffect(() => {
+  async function loadHostels() {
+    try {
+      const data = await getHostels()
+      setHostels(data)
+    } catch (err) {
+      console.error("Failed to load hostels", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  loadHostels()
+  }, [])
 
   const filtered = useMemo(() => {
     let result = hostels.filter((hostel) => {
@@ -57,7 +75,13 @@ export default function HostelsPage() {
     }
 
     return result;
-  }, [searchTerm, maxPrice, maxDistance, sortBy, selectedAmenities]);
+  }, [hostels, searchTerm, maxPrice, maxDistance, sortBy, selectedAmenities]);
+
+
+  if (loading) {
+  return <div>Loading hostels...</div>
+  }
+
 
   return (
     <>
