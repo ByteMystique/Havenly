@@ -2,6 +2,7 @@ export function getAmenityIcon(amenity) {
   const icons = {
     WiFi: '📶',
     Mess: '🍽️',
+    Food: '🍽️',
     AC: '❄️',
     Gym: '💪',
     Pool: '🏊',
@@ -12,11 +13,15 @@ export function getAmenityIcon(amenity) {
     Library: '📖',
     Parking: '🚗',
     Security: '🔒',
+    CCTV: '📹',
     'Common Room': '🛋️',
     'Common Area': '🛋️',
     Spa: '💆',
     Cafe: '☕',
     'Gaming Room': '🎮',
+    Clean: '✨',
+    '24/7 Access': '🕐',
+    'Open 24/7': '🕐',
   };
   return icons[amenity] || '✓';
 }

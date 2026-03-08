@@ -4,12 +4,14 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Loader from './components/Loader';
+import AiChat from './components/AiChat';
 
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const HostelsPage = lazy(() => import('./pages/HostelsPage'));
 const HostelDetailPage = lazy(() => import('./pages/HostelDetailPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ComparePage = lazy(() => import('./pages/ComparePage'));
 
 export default function App() {
   return (
@@ -36,6 +38,14 @@ export default function App() {
                 }
               />
               <Route
+                path="/compare"
+                element={
+                  <ProtectedRoute>
+                    <ComparePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
@@ -46,6 +56,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          <AiChat />
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
