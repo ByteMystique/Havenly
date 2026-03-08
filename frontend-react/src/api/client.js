@@ -15,7 +15,7 @@ async function request(endpoint, options = {}) {
     throw new Error(data.error || "API Error")
   }
 
-  return data.data
+  return data
 }
 
 export const api = {

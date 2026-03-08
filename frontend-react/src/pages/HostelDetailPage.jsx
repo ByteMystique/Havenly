@@ -19,8 +19,8 @@ export default function HostelDetailPage() {
   useEffect(() => {
     async function loadHostel() {
       try {
-        const data = await getHostel(id);
-        setHostel(data);
+        const res = await getHostel(id)
+        setHostel(res.data)
       } catch (err) {
         console.error("Failed to load hostel", err);
       } finally {

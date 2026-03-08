@@ -8,7 +8,7 @@ import { formatDate, formatRoomType } from '../utils/helpers';
 import { getUserBookings, deleteBooking } from '../api/bookings';
 
 export default function DashboardPage() {
-  const { isLoggedIn, displayName } = useAuth();
+  const { isLoggedIn, displayName, userId } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('bookings');
@@ -23,7 +23,8 @@ export default function DashboardPage() {
 
     async function loadBookings() {
       try {
-        const data = await getUserBookings("demo-user");
+        const res = await getUserBookings(userId)
+        const data = res.data
 
         const mapped = data.map((b) => {
           const hostel = hostels.find((h) => h.id === b.hostel_id);

@@ -37,12 +37,12 @@ const handleLogin = async (e) => {
     setLoadingText("Logging in...");
     setLoading(true);
 
-    const data = await apiLogin({
+    const res = await apiLogin({
       email: loginEmail,
       password: loginPassword
     });
 
-    login(loginEmail, data.user.id);
+    login(loginEmail, res.user.id);
 
     toast.success("Welcome back!", "Login successful", 2000);
 
