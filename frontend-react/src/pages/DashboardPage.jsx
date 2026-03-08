@@ -15,46 +15,48 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState([]);
 
-  useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/');
-      return;
-    }
+useEffect(() => {
+  if (!isLoggedIn) {
+    navigate('/');
+    return;
+  }
 
-    async function loadBookings() {
+  if (!userId) return;
+
+  async function loadBookings() {
       try {
-        const res = await getUserBookings(userId)
-        const data = res.data
+        const res = await getUserBookings(userId);
+        const data = res.data;
 
-        const mapped = data.map((b) => {
-          const hostel = hostels.find((h) => h.id === b.hostel_id);
+       const mapped = data.map((b) => {
+         const hostel = hostels.find((h) => h.id === b.hostel_id);
 
-          return {
-            id: b.id,
-            hostelId: b.hostel_id,
-            hostelName: hostel?.name || "Hostel",
-            checkIn: b.check_in,
-            checkOut: b.check_out,
-            roomType: "single",
-            specialRequests: "",
-            totalAmount: hostel?.price || 0,
-            status: "pending",
-            bookedAt: b.created_at
-          };
+         return {
+          id: b.id,
+          hostelId: b.hostel_id,
+          hostelName: hostel?.name || "Hostel",
+          checkIn: b.check_in,
+          checkOut: b.check_out,
+          roomType: "single",
+          specialRequests: "",
+          totalAmount: hostel?.price || 0,
+          status: "pending",
+          bookedAt: b.created_at
+         };
         });
 
-        setBookings(mapped);
+       setBookings(mapped);
 
       } catch (err) {
-        console.error("Failed to load bookings", err);
+       console.error("Failed to load bookings", err);
       }
-    }
+   }
 
     loadBookings();
 
     setFavoriteIds(JSON.parse(localStorage.getItem('favorites') || '[]'));
 
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, navigate, userId]);
 
   const sortedBookings = [...bookings].sort(
     (a, b) => new Date(b.bookedAt) - new Date(a.bookedAt)

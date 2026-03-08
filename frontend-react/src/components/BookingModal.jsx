@@ -41,7 +41,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
       const total = Math.ceil((days / 30) * hostel.price);
 
       const bookingData = {
-        user_id: "demo-user", // temporary until auth is implemented
+        user_id: userId,
         hostel_id: hostel.id,
         check_in: checkIn,
         check_out: checkOut,
