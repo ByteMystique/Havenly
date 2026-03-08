@@ -80,15 +80,14 @@ const handleSignup = async (e) => {
       password: signupPassword
     });
 
-    signup(signupName, signupEmail);
-
     toast.success(
       "Account created!",
-      "Check your email to verify your account",
-      3000
+      "Please verify your email before logging in.",
+      4000
     );
 
-    setTimeout(() => navigate("/hostels"), 500);
+    // switch back to login screen
+    setIsLogin(true);
 
   } catch (err) {
     toast.error("Signup Failed", err.message || "Unable to create account");

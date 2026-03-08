@@ -10,10 +10,18 @@ export async function POST(req: Request) {
     password,
   });
 
-  if (error) {
+if (error) {
+  return NextResponse.json(
+    { error: error.message },
+    { status: 401, headers: corsHeaders }
+  );
+}
+
+// enforce email verification
+if (!data.user?.email_confirmed_at) {
     return NextResponse.json(
-      { error: error.message },
-      { status: 401, headers: corsHeaders }
+      { error: "Please verify your email before logging in." },
+      { status: 403, headers: corsHeaders }
     );
   }
 
