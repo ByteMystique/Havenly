@@ -1,22 +1,51 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import LoginPage from './pages/LoginPage';
-import HostelsPage from './pages/HostelsPage';
-import HostelDetailPage from './pages/HostelDetailPage';
-import DashboardPage from './pages/DashboardPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import Loader from './components/Loader';
+
+// Lazy-loaded pages for code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const HostelsPage = lazy(() => import('./pages/HostelsPage'));
+const HostelDetailPage = lazy(() => import('./pages/HostelDetailPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
-          <Routes>
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/hostels" element={<HostelsPage />} />
-            <Route path="/hostel/:id" element={<HostelDetailPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-          </Routes>
+          <Suspense fallback={<Loader text="Loading page..." />}>
+            <Routes>
+              <Route path="/" element={<LoginPage />} />
+              <Route
+                path="/hostels"
+                element={
+                  <ProtectedRoute>
+                    <HostelsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hostel/:id"
+                element={
+                  <ProtectedRoute>
+                    <HostelDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

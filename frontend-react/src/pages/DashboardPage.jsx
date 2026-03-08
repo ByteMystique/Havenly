@@ -3,60 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import useFavorites from '../hooks/useFavorites';
 import hostels from '../data/hostels';
 import { formatDate, formatRoomType } from '../utils/helpers';
-import { getUserBookings, deleteBooking } from '../api/bookings';
 
 export default function DashboardPage() {
-  const { isLoggedIn, displayName, userId } = useAuth();
+  const { isLoggedIn, displayName } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
-  const [favoriteIds, setFavoriteIds] = useState([]);
+  const { favoriteIds, removeFavorite } = useFavorites();
 
-useEffect(() => {
-  if (!isLoggedIn) {
-    navigate('/');
-    return;
-  }
-
-  if (!userId) return;
-
-  async function loadBookings() {
-      try {
-        const res = await getUserBookings(userId);
-        const data = res.data;
-
-       const mapped = data.map((b) => {
-         const hostel = hostels.find((h) => h.id === b.hostel_id);
-
-         return {
-          id: b.id,
-          hostelId: b.hostel_id,
-          hostelName: hostel?.name || "Hostel",
-          checkIn: b.check_in,
-          checkOut: b.check_out,
-          roomType: "single",
-          specialRequests: "",
-          totalAmount: hostel?.price || 0,
-          status: "pending",
-          bookedAt: b.created_at
-         };
-        });
-
-       setBookings(mapped);
-
-      } catch (err) {
-       console.error("Failed to load bookings", err);
-      }
-   }
-
-    loadBookings();
-
-    setFavoriteIds(JSON.parse(localStorage.getItem('favorites') || '[]'));
-
-  }, [isLoggedIn, navigate, userId]);
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/');
+      return;
+    }
+    setBookings(JSON.parse(localStorage.getItem('bookings') || '[]'));
+  }, [isLoggedIn, navigate]);
 
   const sortedBookings = [...bookings].sort(
     (a, b) => new Date(b.bookedAt) - new Date(a.bookedAt)
@@ -64,35 +29,19 @@ useEffect(() => {
 
   const favoriteHostels = hostels.filter((h) => favoriteIds.includes(h.id));
 
-  const cancelBooking = async (id) => {
+  const cancelBooking = (id) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-
-    try {
-      await deleteBooking(id);
-
-      setBookings((prev) => prev.filter((b) => b.id !== id));
-
-      toast.warning(
-        'Booking Cancelled',
-        'Your booking has been cancelled successfully.',
-        3000
-      );
-
-    } catch (err) {
-      console.error(err);
-      toast.error(
-        'Cancellation Failed',
-        'Unable to cancel booking.',
-        3000
-      );
-    }
+    const updated = bookings.map((b) =>
+      b.id === id ? { ...b, status: 'cancelled' } : b
+    );
+    setBookings(updated);
+    localStorage.setItem('bookings', JSON.stringify(updated));
+    toast.warning('Booking Cancelled', 'Your booking has been cancelled successfully.', 3000);
   };
 
-  const removeFavorite = (e, id) => {
+  const handleRemoveFavorite = (e, id) => {
     e.stopPropagation();
-    const updated = favoriteIds.filter((fav) => fav !== id);
-    setFavoriteIds(updated);
-    localStorage.setItem('favorites', JSON.stringify(updated));
+    removeFavorite(id);
     toast.info('Removed', 'Hostel removed from favorites', 2000);
   };
 
@@ -220,7 +169,7 @@ useEffect(() => {
                       className="favorite-card"
                       onClick={() => navigate(`/hostel/${hostel.id}`)}
                     >
-                      <img src={hostel.image} alt={hostel.name} className="favorite-image" />
+                      <img src={hostel.image} alt={hostel.name} className="favorite-image" loading="lazy" />
                       <div className="favorite-info">
                         <h3>{hostel.name}</h3>
                         <p className="favorite-location">📍 {hostel.location}</p>
@@ -230,7 +179,7 @@ useEffect(() => {
                           </div>
                           <button
                             className="remove-favorite"
-                            onClick={(e) => removeFavorite(e, hostel.id)}
+                            onClick={(e) => handleRemoveFavorite(e, hostel.id)}
                           >
                             Remove
                           </button>

@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { corsHeaders } from "@/lib/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function POST(req: Request) {
   const { email, password } = await req.json();
@@ -17,12 +26,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json(
-    { user: data.user },
-    { headers: corsHeaders }
-  );
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { headers: corsHeaders });
+  return NextResponse.json({ user: data.user }, { headers: corsHeaders });
 }

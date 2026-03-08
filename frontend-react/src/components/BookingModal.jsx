@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
-import { createBooking } from "../api/bookings";
-import { useAuth } from "../context/AuthContext";
 
 export default function BookingModal({ hostel, isOpen, onClose }) {
-
   const toast = useToast();
-  const { userId } = useAuth(); // ✅ get authenticated user
-
+  const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [roomType, setRoomType] = useState('');
@@ -35,70 +32,57 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
     }
   }, [checkIn, checkOut, hostel?.price]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const total = Math.ceil((days / 30) * hostel.price);
 
-    // ✅ guard against missing auth
-    if (!userId) {
-      toast.error("Authentication Error", "Please login again.");
-      return;
-    }
+    const booking = {
+      id: Date.now(),
+      hostelId: hostel.id,
+      hostelName: hostel.name,
+      checkIn,
+      checkOut,
+      roomType,
+      specialRequests,
+      totalAmount: total,
+      status: 'pending',
+      bookedAt: new Date().toISOString(),
+    };
 
-    try {
-      const start = new Date(checkIn);
-      const end = new Date(checkOut);
-      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    bookings.push(booking);
+    localStorage.setItem('bookings', JSON.stringify(bookings));
 
-      if (days <= 0) {
-        toast.error("Invalid Dates", "Check-out must be after check-in.");
-        return;
-      }
+    toast.success(
+      'Booking Confirmed!',
+      `Total: ₹${total.toLocaleString()}. Check your dashboard for details.`,
+      3000
+    );
 
-      const total = Math.ceil((days / 30) * hostel.price);
-
-      const bookingData = {
-        user_id: userId, // ✅ fixed
-        hostel_id: hostel.id,
-        check_in: checkIn,
-        check_out: checkOut,
-        guests: 1
-      };
-
-      await createBooking(bookingData);
-
-      toast.success(
-        'Booking Confirmed!',
-        `Total: ₹${total.toLocaleString()}. Check your dashboard for details.`,
-        3000
-      );
-
-      onClose();
-
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1000);
-
-    } catch (err) {
-      console.error(err);
-
-      toast.error(
-        'Booking Failed',
-        'Please try again later.',
-        3000
-      );
-    }
+    onClose();
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 1000);
   };
 
   if (!isOpen || !hostel) return null;
 
   return (
-    <div className="modal active" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal active"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Book your stay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="modal-content">
         <span className="close" onClick={onClose}>
           &times;
         </span>
         <h2>Book Your Stay</h2>
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="checkIn">Check-in Date</label>
@@ -111,19 +95,17 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               required
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="checkOut">Check-out Date</label>
             <input
               type="date"
               id="checkOut"
-              min={today}
+              min={checkIn || today}
               value={checkOut}
               onChange={(e) => setCheckOut(e.target.value)}
               required
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="roomType">Room Type</label>
             <select
@@ -139,7 +121,6 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               <option value="quad">Quad Sharing</option>
             </select>
           </div>
-
           <div className="form-group">
             <label htmlFor="specialRequests">Special Requests (Optional)</label>
             <textarea
@@ -150,24 +131,20 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
               onChange={(e) => setSpecialRequests(e.target.value)}
             ></textarea>
           </div>
-
           <div className="booking-summary">
             <div className="summary-row">
               <span>Duration:</span>
               <span>{duration}</span>
             </div>
-
             <div className="summary-row">
               <span>Monthly Rate:</span>
               <span>₹{hostel.price.toLocaleString()}</span>
             </div>
-
             <div className="summary-row total">
               <span>Total Amount:</span>
               <span>{totalAmount}</span>
             </div>
           </div>
-
           <button type="submit" className="btn-primary">
             Confirm Booking
           </button>

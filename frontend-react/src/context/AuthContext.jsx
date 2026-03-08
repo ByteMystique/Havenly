@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { apiClient } from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -7,57 +8,76 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    () => localStorage.getItem('isLoggedIn') === 'true'
-  );
-
-  const [userName, setUserName] = useState(
-    () => localStorage.getItem('userName') || ''
-  );
-
-  const [userEmail, setUserEmail] = useState(
-    () => localStorage.getItem('userEmail') || ''
-  );
-
-  const [userId, setUserId] = useState(
-    () => localStorage.getItem('userId') || null
-  );
-
-  const login = useCallback((email, id) => {
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('userId', id);
-    localStorage.setItem('isLoggedIn', 'true');
-
-    setUserEmail(email);
-    setUserId(id);
-    setIsLoggedIn(true);
+  // Initialize from stored session on mount
+  useEffect(() => {
+    const session = localStorage.getItem('session');
+    if (session) {
+      try {
+        const parsed = JSON.parse(session);
+        if (parsed.user?.email) {
+          setUserEmail(parsed.user.email);
+          setUserName(parsed.user.user_metadata?.full_name || '');
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error('Failed to restore session:', error);
+        localStorage.removeItem('session');
+      }
+    }
+    setIsLoading(false);
   }, []);
 
-  const signup = useCallback((name, email) => {
-    localStorage.setItem('userName', name);
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('isLoggedIn', 'true');
+  const login = useCallback(async (email, password) => {
+    setAuthError(null);
+    try {
+      const data = await apiClient.login(email, password);
+      apiClient.setToken(data.session);
+      setUserEmail(data.session.user?.email || email);
+      setUserName(data.session.user?.user_metadata?.full_name || '');
+      setIsLoggedIn(true);
+      return data;
+    } catch (error) {
+      const message = error.message || 'Login failed';
+      setAuthError(message);
+      throw error;
+    }
+  }, []);
 
-    setUserName(name);
-    setUserEmail(email);
-    setIsLoggedIn(true);
+  const signup = useCallback(async (email, password, name) => {
+    setAuthError(null);
+    try {
+      const data = await apiClient.signup(email, password, name);
+      // Note: Supabase signup may not return a session, may need email confirmation
+      // If session is returned, store it
+      if (data.session) {
+        apiClient.setToken(data.session);
+        setIsLoggedIn(true);
+      }
+      setUserEmail(data.user?.email || email);
+      setUserName(name || data.user?.user_metadata?.full_name || '');
+      return data;
+    } catch (error) {
+      const message = error.message || 'Signup failed';
+      setAuthError(message);
+      throw error;
+    }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userId');
-
+    apiClient.clearToken();
     setIsLoggedIn(false);
     setUserName('');
     setUserEmail('');
-    setUserId(null);
+    setAuthError(null);
   }, []);
 
-  const displayName =
-    userName || (userEmail ? userEmail.split('@')[0] : 'User');
+  const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'User');
 
   return (
     <AuthContext.Provider
@@ -65,11 +85,13 @@ export function AuthProvider({ children }) {
         isLoggedIn,
         userName,
         userEmail,
-        userId,
         displayName,
         login,
         signup,
-        logout
+        logout,
+        isLoading,
+        authError,
+        setAuthError,
       }}
     >
       {children}

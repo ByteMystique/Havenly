@@ -49,9 +49,9 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ success, error, warning, info }}>
       {children}
-      <div className="toast-container">
+      <div className="toast-container" role="status" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.type}`}>
+          <div key={t.id} className={`toast ${t.type}`} role="alert">
             <div className="toast-icon">{icons[t.type]}</div>
             <div className="toast-content">
               {t.title && <div className="toast-title">{t.title}</div>}

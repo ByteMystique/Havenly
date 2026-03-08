@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { corsHeaders } from "@/lib/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function POST(req: Request) {
   const { email, password } = await req.json();
@@ -10,30 +19,12 @@ export async function POST(req: Request) {
     password,
   });
 
-if (error) {
-  return NextResponse.json(
-    { error: error.message },
-    { status: 401, headers: corsHeaders }
-  );
-}
-
-// enforce email verification
-if (!data.user?.email_confirmed_at) {
+  if (error) {
     return NextResponse.json(
-      { error: "Please verify your email before logging in." },
-      { status: 403, headers: corsHeaders }
+      { error: error.message },
+      { status: 401, headers: corsHeaders }
     );
   }
 
-  return NextResponse.json(
-    {
-      session: data.session,
-      user: data.user
-    },
-    { headers: corsHeaders }
-  );
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { headers: corsHeaders });
+  return NextResponse.json({ session: data.session }, { headers: corsHeaders });
 }
