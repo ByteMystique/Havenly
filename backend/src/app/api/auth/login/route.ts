@@ -18,8 +18,11 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json(
-  { session: data.session },
-  { headers: corsHeaders }
+    {
+      session: data.session,
+      user: data.user
+    },
+    { headers: corsHeaders }
   );
 }
 
