@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import { createBooking } from "../api/bookings";
+import { useAuth } from "../context/AuthContext";
 
 export default function BookingModal({ hostel, isOpen, onClose }) {
+
   const toast = useToast();
+  const { userId } = useAuth(); // ✅ get authenticated user
+
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [roomType, setRoomType] = useState('');
@@ -34,14 +38,26 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // ✅ guard against missing auth
+    if (!userId) {
+      toast.error("Authentication Error", "Please login again.");
+      return;
+    }
+
     try {
       const start = new Date(checkIn);
       const end = new Date(checkOut);
       const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+      if (days <= 0) {
+        toast.error("Invalid Dates", "Check-out must be after check-in.");
+        return;
+      }
+
       const total = Math.ceil((days / 30) * hostel.price);
 
       const bookingData = {
-        user_id: userId,
+        user_id: userId, // ✅ fixed
         hostel_id: hostel.id,
         check_in: checkIn,
         check_out: checkOut,
