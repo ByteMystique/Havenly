@@ -4,6 +4,7 @@ async function request(endpoint, options = {}) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("supabaseAccessToken")}`,
       ...options.headers
     },
     ...options

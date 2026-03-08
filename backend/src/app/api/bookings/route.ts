@@ -11,13 +11,38 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
 
-    const { user_id, hostel_id, check_in, check_out, guests } = body
+    const { hostel_id, check_in, check_out, guests } = body
+
+    // get authorization header
+    const authHeader = req.headers.get("authorization")
+
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      )
+    }
+
+    const token = authHeader.replace("Bearer ", "")
+
+    // validate user session with Supabase
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser(token)
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { success: false, error: "Invalid session" },
+        { status: 401, headers: corsHeaders }
+      )
+    }
 
     const { data, error } = await supabase
       .from("bookings")
       .insert([
         {
-          user_id,
+          user_id: user.id,
           hostel_id,
           check_in,
           check_out,
