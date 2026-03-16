@@ -270,6 +270,99 @@ img {
   max-width: 420px;
 }
 
+/* Role subtitle */
+.role-subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: var(--gray-500);
+  margin-top: -16px;
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+/* Role Selector — segmented control */
+.role-selector {
+  display: flex;
+  position: relative;
+  margin-bottom: 24px;
+  background: var(--gray-50);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.role-slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  background: var(--blue-600);
+  border-radius: 6px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+  box-shadow: 0 1px 3px rgba(0, 113, 194, 0.3);
+}
+
+.role-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.25s ease;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--gray-500);
+  position: relative;
+  z-index: 1;
+  font-family: inherit;
+}
+
+.role-tab:hover {
+  color: var(--gray-700);
+}
+
+.role-tab.active {
+  color: var(--white);
+}
+
+.role-tab.active svg {
+  stroke: var(--white);
+}
+
+.role-tab svg {
+  transition: stroke 0.25s ease;
+  stroke: var(--gray-500);
+  flex-shrink: 0;
+}
+
+.role-tab:hover svg {
+  stroke: var(--gray-700);
+}
+
+.role-label {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .role-tab {
+    padding: 9px 12px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .role-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 .form-container {
   background: var(--white);
   padding: 36px;

@@ -6,6 +6,7 @@ import { apiClient } from '../utils/api';
 import Loader from '../components/Loader';
 
 export default function LoginPage() {
+  const [userRole, setUserRole] = useState('student'); // 'student' or 'owner'
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,9 +36,13 @@ export default function LoginPage() {
 
     try {
       await login(loginEmail, loginPassword);
+      // Store user role in localStorage
+      localStorage.setItem('userRole', userRole);
       setLoading(false);
       toast.success('Welcome back!', 'Login successful', 2000);
-      setTimeout(() => navigate('/hostels'), 500);
+      // Navigate based on user role
+      const destination = userRole === 'owner' ? '/owner/dashboard' : '/hostels';
+      setTimeout(() => navigate(destination), 500);
     } catch (error) {
       setLoading(false);
       const errorMsg = error.message || 'Login failed. Please check your credentials.';
@@ -46,7 +52,7 @@ export default function LoginPage() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    if (!signupName || !signupEmail || !signupPassword) {
+    if (!signupName || !signupEmail || !signupPassword || !signupConfirmPassword) {
       toast.error('Missing fields', 'Please fill in all fields', 2000);
       return;
     }
@@ -56,25 +62,57 @@ export default function LoginPage() {
       return;
     }
 
+    if (signupPassword !== signupConfirmPassword) {
+      toast.error('Password mismatch', 'Passwords do not match', 2000);
+      return;
+    }
+
     setLoadingText('Creating account...');
     setLoading(true);
 
     try {
       await signup(signupEmail, signupPassword, signupName);
+      // Store user role in localStorage
+      localStorage.setItem('userRole', userRole);
       setLoading(false);
       toast.success('Account created!', 'Welcome to Havenly', 2000);
       // Clear form
       setSignupName('');
       setSignupEmail('');
       setSignupPassword('');
+      setSignupConfirmPassword('');
       // Navigate after a short delay
-      setTimeout(() => navigate('/hostels'), 500);
+      const destination = userRole === 'owner' ? '/owner/dashboard' : '/hostels';
+      setTimeout(() => navigate(destination), 500);
     } catch (error) {
       setLoading(false);
       const errorMsg = error.message || 'Signup failed. Please try again.';
       toast.error('Signup failed', errorMsg, 3000);
     }
   };
+
+  const resetFormFields = () => {
+    setLoginEmail('');
+    setLoginPassword('');
+    setSignupName('');
+    setSignupEmail('');
+    setSignupPassword('');
+    setSignupConfirmPassword('');
+  };
+
+  const studentIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+      <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/>
+    </svg>
+  );
+
+  const ownerIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2"/>
+      <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/>
+    </svg>
+  );
 
   return (
     <div className="auth-page">
@@ -83,6 +121,27 @@ export default function LoginPage() {
         {isLogin ? (
           <div className="form-container">
             <h2>Login</h2>
+            <p className="role-subtitle">Choose how you want to sign in</p>
+
+            {/* Role Selection */}
+            <div className="role-selector">
+              <div className="role-slider" style={{ transform: userRole === 'owner' ? 'translateX(100%)' : 'translateX(0)' }} />
+              <button
+                className={`role-tab ${userRole === 'student' ? 'active' : ''}`}
+                onClick={() => { setUserRole('student'); setIsLogin(true); resetFormFields(); }}
+              >
+                {studentIcon}
+                <span className="role-label">Student</span>
+              </button>
+              <button
+                className={`role-tab ${userRole === 'owner' ? 'active' : ''}`}
+                onClick={() => { setUserRole('owner'); setIsLogin(true); resetFormFields(); }}
+              >
+                {ownerIcon}
+                <span className="role-label">Hostel Owner</span>
+              </button>
+            </div>
+
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label htmlFor="login-email">Email</label>
@@ -123,9 +182,30 @@ export default function LoginPage() {
         ) : (
           <div className="form-container">
             <h2>Sign Up</h2>
+            <p className="role-subtitle">Choose your account type</p>
+
+            {/* Role Selection */}
+            <div className="role-selector">
+              <div className="role-slider" style={{ transform: userRole === 'owner' ? 'translateX(100%)' : 'translateX(0)' }} />
+              <button
+                className={`role-tab ${userRole === 'student' ? 'active' : ''}`}
+                onClick={() => { setUserRole('student'); resetFormFields(); }}
+              >
+                {studentIcon}
+                <span className="role-label">Student</span>
+              </button>
+              <button
+                className={`role-tab ${userRole === 'owner' ? 'active' : ''}`}
+                onClick={() => { setUserRole('owner'); resetFormFields(); }}
+              >
+                {ownerIcon}
+                <span className="role-label">Hostel Owner</span>
+              </button>
+            </div>
+
             <form onSubmit={handleSignup}>
               <div className="form-group">
-                <label htmlFor="signup-name">Name</label>
+                <label htmlFor="signup-name">{userRole === 'owner' ? 'Business Name' : 'Full Name'}</label>
                 <input
                   type="text"
                   id="signup-name"
@@ -151,6 +231,16 @@ export default function LoginPage() {
                   id="signup-password"
                   value={signupPassword}
                   onChange={(e) => setSignupPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="signup-confirm-password">Confirm Password</label>
+                <input
+                  type="password"
+                  id="signup-confirm-password"
+                  value={signupConfirmPassword}
+                  onChange={(e) => setSignupConfirmPassword(e.target.value)}
                   required
                 />
               </div>
