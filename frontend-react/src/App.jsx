@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Loader from './components/Loader';
@@ -12,6 +12,15 @@ const HostelsPage = lazy(() => import('./pages/HostelsPage'));
 const HostelDetailPage = lazy(() => import('./pages/HostelDetailPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ComparePage = lazy(() => import('./pages/ComparePage'));
+
+// Only show AI chat for logged-in students
+function StudentAiChat() {
+  const { isLoggedIn } = useAuth();
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+
+  if (!isLoggedIn || userRole !== 'student') return null;
+  return <AiChat />;
+}
 
 export default function App() {
   return (
@@ -56,7 +65,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-          <AiChat />
+          <StudentAiChat />
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
