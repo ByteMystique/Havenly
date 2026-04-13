@@ -1,73 +1,68 @@
-// API configuration and client
+// Thin auth-token helper — HTTP is handled by dataService
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+function makeDemoSession(email, name) {
+  return {
+    access_token: 'demo-token-' + Date.now(),
+    user: {
+      id: 'demo-user-' + Date.now(),
+      email,
+      user_metadata: { full_name: name || email.split('@')[0] },
+      created_at: new Date().toISOString(),
+    },
+  };
+}
 
 export const apiClient = {
-  async post(endpoint, body) {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || response.statusText);
-    }
-
-    return response.json();
-  },
-
-  async get(endpoint) {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || response.statusText);
-    }
-
-    return response.json();
-  },
-
   getToken() {
-    const session = localStorage.getItem('session');
-    if (!session) return '';
-    try {
-      return JSON.parse(session).access_token || '';
-    } catch {
-      return '';
-    }
+    try { return JSON.parse(localStorage.getItem('session'))?.access_token || ''; } catch { return ''; }
   },
+  setToken(session) { localStorage.setItem('session', JSON.stringify(session)); },
+  clearToken() { localStorage.removeItem('session'); },
+  isDemoMode: () => DEMO_MODE,
 
-  setToken(session) {
-    localStorage.setItem('session', JSON.stringify(session));
-  },
-
-  clearToken() {
-    localStorage.removeItem('session');
-  },
-
-  // Auth methods
   async login(email, password) {
-    return this.post('/api/auth/login', { email, password });
+    if (DEMO_MODE) {
+      await new Promise(r => setTimeout(r, 400));
+      return { session: makeDemoSession(email) };
+    }
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    return data;
   },
 
   async signup(email, password, name) {
-    return this.post('/api/auth/signup', { email, password, name });
+    if (DEMO_MODE) {
+      await new Promise(r => setTimeout(r, 400));
+      const session = makeDemoSession(email, name);
+      return { session, user: session.user };
+    }
+    const res = await fetch(`${API_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    return data;
   },
 
   async checkHealth() {
-    return this.get('/api/health');
+    if (DEMO_MODE) return { ok: true, message: 'Demo mode' };
+    try {
+      const res = await fetch(`${API_URL}/api/auth/health`);
+      return res.json();
+    } catch { return { ok: false }; }
   },
 
   getOAuthUrl() {
+    if (DEMO_MODE) return '#';
     return `${API_URL}/api/auth/oauth`;
   },
 };
