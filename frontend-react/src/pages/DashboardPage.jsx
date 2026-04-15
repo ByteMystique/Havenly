@@ -34,7 +34,6 @@ export default function DashboardPage() {
   const favoriteHostels = allHostels.filter(h => favoriteIds.includes(h.id));
 
   const cancelBooking = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
     const updated = await dataService.cancelBooking(id);
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
     toast.warning('Booking Cancelled', 'Your booking has been cancelled.', 3000);

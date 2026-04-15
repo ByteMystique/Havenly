@@ -42,9 +42,11 @@ export default function App() {
                 <Route path="/"       element={<HomePage />} />
                 <Route path="/login"  element={<LoginPage />} />
 
-                {/* Student routes */}
-                <Route path="/hostels"    element={<ProtectedRoute><HostelsPage /></ProtectedRoute>} />
-                <Route path="/hostel/:id" element={<ProtectedRoute><HostelDetailPage /></ProtectedRoute>} />
+                {/* Public browse — no login needed */}
+                <Route path="/hostels"    element={<HostelsPage />} />
+                <Route path="/hostel/:id" element={<HostelDetailPage />} />
+
+                {/* Protected student routes */}
                 <Route path="/compare"    element={<ProtectedRoute><ComparePage /></ProtectedRoute>} />
                 <Route path="/dashboard"  element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
                 <Route path="/profile"    element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

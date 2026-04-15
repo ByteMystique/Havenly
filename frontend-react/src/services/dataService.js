@@ -2,7 +2,7 @@
  * Havenly Data Service
  * ===================
  * Unified CRUD layer. In DEMO_MODE uses localStorage + static data.
- * In live mode calls the Next.js backend API.
+ * In live mode calls the Next.js backend API (which talks to Supabase).
  *
  * All public methods return plain JS objects / arrays (never Response objects).
  * Callers never need to know where data comes from.
@@ -11,7 +11,7 @@
 import staticHostels from '../data/hostels.js';
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL   = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // ── Extra image pool for gallery (deterministic by hostel ID) ─────────────────
 const IMAGE_POOL = [
@@ -51,18 +51,53 @@ function getExtraImages(hostelId, primary) {
 function defaultRoomTypes(price) {
   const base = price || 4000;
   return [
-    { id: 'rt_single', type: 'single', label: 'Single Room', price: Math.round(base * 1.4), totalBeds: 10, occupiedBeds: Math.floor(Math.random() * 8) },
-    { id: 'rt_double', type: 'double', label: 'Double Sharing', price: base, totalBeds: 20, occupiedBeds: Math.floor(Math.random() * 16) },
+    { id: 'rt_single', type: 'single', label: 'Single Room',     price: Math.round(base * 1.4), totalBeds: 10, occupiedBeds: Math.floor(Math.random() * 8) },
+    { id: 'rt_double', type: 'double', label: 'Double Sharing',  price: base,                    totalBeds: 20, occupiedBeds: Math.floor(Math.random() * 16) },
     { id: 'rt_triple', type: 'triple', label: 'Triple Sharing', price: Math.round(base * 0.75), totalBeds: 30, occupiedBeds: Math.floor(Math.random() * 25) },
   ];
 }
 
-// Enrich static hostel with computed fields
+// Normalise DB room_types snake_case → camelCase
+function normaliseRoomType(rt) {
+  return {
+    id:           rt.id,
+    type:         rt.type,
+    label:        rt.label,
+    price:        rt.price,
+    totalBeds:    rt.total_beds    ?? rt.totalBeds    ?? 10,
+    occupiedBeds: rt.occupied_beds ?? rt.occupiedBeds ?? 0,
+  };
+}
+
+// Enrich hostel with image gallery + roomTypes
 function enrichHostel(h) {
+  const roomTypes = (h.room_types || h.roomTypes || []).map(normaliseRoomType);
   return {
     ...h,
-    images: h.images || getExtraImages(h.id, h.image),
-    roomTypes: h.roomTypes || defaultRoomTypes(h.price),
+    images:    h.images || getExtraImages(h.id, h.image),
+    roomTypes: roomTypes.length ? roomTypes : defaultRoomTypes(h.price),
+  };
+}
+
+// Normalise DB booking snake_case → camelCase
+function normaliseBooking(b) {
+  return {
+    ...b,
+    hostelId:      b.hostel_id       ?? b.hostelId,
+    userId:        b.user_id         ?? b.userId,
+    hostelName:    b.hostel_name     ?? b.hostelName,
+    roomTypeId:    b.room_type_id    ?? b.roomTypeId,
+    roomType:      b.room_type_label ?? b.roomType ?? b.roomTypeLabel,
+    studentName:   b.student_name    ?? b.studentName,
+    studentEmail:  b.student_email   ?? b.studentEmail,
+    checkIn:       b.check_in        ?? b.checkIn,
+    checkOut:      b.check_out       ?? b.checkOut,
+    totalAmount:   b.total_amount    ?? b.totalAmount,
+    paymentMethod: b.payment_method  ?? b.paymentMethod,
+    transactionId: b.transaction_id  ?? b.transactionId,
+    bookedAt:      b.booked_at       ?? b.bookedAt,
+    guests:        b.guests          ?? 1,
+    status:        b.status          ?? 'pending',
   };
 }
 
@@ -82,44 +117,39 @@ async function http(method, path, body) {
     method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
   };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API_URL}${path}`, opts);
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res  = await fetch(`${API_URL}${path}`, opts);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }
 
-// ── Demo user helper ──────────────────────────────────────────────────────────
-function demoUserId() {
-  try { return JSON.parse(localStorage.getItem('session'))?.user?.id || 'demo-user'; } catch { return 'demo-user'; }
-}
-function demoUserName() {
-  try {
-    const s = JSON.parse(localStorage.getItem('session'));
-    return s?.user?.user_metadata?.full_name || s?.user?.email?.split('@')[0] || 'User';
-  } catch { return 'User'; }
-}
-function demoUserEmail() {
-  try { return JSON.parse(localStorage.getItem('session'))?.user?.email || ''; } catch { return ''; }
-}
+// ── Demo user helpers ─────────────────────────────────────────────────────────
+function demoUserId()    { try { return JSON.parse(localStorage.getItem('session'))?.user?.id    || 'demo-user'; } catch { return 'demo-user'; } }
+function demoUserName()  { try { const s = JSON.parse(localStorage.getItem('session')); return s?.user?.user_metadata?.full_name || s?.user?.email?.split('@')[0] || 'User'; } catch { return 'User'; } }
+function demoUserEmail() { try { return JSON.parse(localStorage.getItem('session'))?.user?.email || ''; } catch { return ''; } }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DATA SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 export const dataService = {
 
-  // ── AUTH ────────────────────────────────────────────────────────────────────
   isDemoMode: () => DEMO_MODE,
 
   // ── HOSTELS ─────────────────────────────────────────────────────────────────
   async getHostels() {
     if (DEMO_MODE) {
       const ownerHostels = ls('ownerHostels', []);
-      const all = [...staticHostels.map(enrichHostel), ...ownerHostels.filter(h => h.status === 'active')];
-      return all;
+      return [...staticHostels.map(enrichHostel), ...ownerHostels.filter(h => h.status === 'active')];
     }
+    // Combine static hostels + Supabase hostels (Supabase ones take priority by name)
     const data = await http('GET', '/api/hostels');
-    return (data.data || []).map(enrichHostel);
+    const supabaseHostels = (data.data || []).map(enrichHostel);
+    const supabaseNames = new Set(supabaseHostels.map(h => h.name?.toLowerCase()));
+    const staticFiltered = staticHostels
+      .filter(h => !supabaseNames.has(h.name?.toLowerCase()))
+      .map(enrichHostel);
+    return [...supabaseHostels, ...staticFiltered];
   },
 
   async getHostel(id) {
@@ -133,18 +163,12 @@ export const dataService = {
     return data.data ? enrichHostel(data.data) : null;
   },
 
-  // Owner: create hostel
   async createHostel(hostelData) {
     if (DEMO_MODE) {
       const existing = ls('ownerHostels', []);
       const newHostel = {
-        ...hostelData,
-        id: Date.now(),
-        ownerId: demoUserId(),
-        status: 'active',
-        rating: 0,
-        ratingCount: 0,
-        createdAt: new Date().toISOString(),
+        ...hostelData, id: Date.now(), ownerId: demoUserId(), status: 'active',
+        rating: 0, ratingCount: 0, createdAt: new Date().toISOString(),
         images: getExtraImages(Date.now(), hostelData.image || IMAGE_POOL[0]),
         roomTypes: hostelData.roomTypes || defaultRoomTypes(hostelData.price),
       };
@@ -152,40 +176,36 @@ export const dataService = {
       return newHostel;
     }
     const data = await http('POST', '/api/hostels', hostelData);
-    return data.data;
+    return enrichHostel(data.data);
   },
 
-  // Owner: update hostel
   async updateHostel(id, updates) {
     if (DEMO_MODE) {
       const existing = ls('ownerHostels', []);
-      const updated = existing.map(h => h.id === parseInt(id) ? { ...h, ...updates } : h);
+      const updated  = existing.map(h => h.id === parseInt(id) ? { ...h, ...updates } : h);
       lsSet('ownerHostels', updated);
       return updated.find(h => h.id === parseInt(id));
     }
     const data = await http('PUT', `/api/hostels/${id}`, updates);
-    return data.data;
+    return enrichHostel(data.data);
   },
 
-  // Owner: delete hostel
   async deleteHostel(id) {
     if (DEMO_MODE) {
-      const existing = ls('ownerHostels', []);
-      lsSet('ownerHostels', existing.filter(h => h.id !== parseInt(id)));
+      lsSet('ownerHostels', ls('ownerHostels', []).filter(h => h.id !== parseInt(id)));
       return true;
     }
     await http('DELETE', `/api/hostels/${id}`);
     return true;
   },
 
-  // Owner: get my hostels
   async getMyHostels() {
     if (DEMO_MODE) {
       const uid = demoUserId();
       return ls('ownerHostels', []).filter(h => h.ownerId === uid);
     }
     const data = await http('GET', '/api/hostels/mine');
-    return data.data || [];
+    return (data.data || []).map(enrichHostel);
   },
 
   // ── ROOM TYPES ──────────────────────────────────────────────────────────────
@@ -195,13 +215,11 @@ export const dataService = {
   },
 
   async updateRoomAvailability(hostelId, roomTypeId, delta) {
-    // delta: +1 occupied, -1 released
     if (DEMO_MODE) {
-      const key = `roomTypes_${hostelId}`;
-      const rooms = ls(key, null);
-      const hostel = await this.getHostel(hostelId);
-      const baseRooms = rooms || hostel?.roomTypes || [];
-      const updated = baseRooms.map(rt =>
+      const key      = `roomTypes_${hostelId}`;
+      const hostel   = await this.getHostel(hostelId);
+      const baseRooms = ls(key, null) || hostel?.roomTypes || [];
+      const updated  = baseRooms.map(rt =>
         rt.id === roomTypeId
           ? { ...rt, occupiedBeds: Math.min(rt.totalBeds, Math.max(0, rt.occupiedBeds + delta)) }
           : rt
@@ -209,26 +227,20 @@ export const dataService = {
       lsSet(key, updated);
       return updated;
     }
+    // Live mode: handled server-side in bookings/[id] route on approve/cancel
   },
 
   // ── BOOKINGS ────────────────────────────────────────────────────────────────
   async createBooking(bookingData) {
     if (DEMO_MODE) {
       const bookings = ls('bookings', []);
-      const booking = {
-        ...bookingData,
-        id: Date.now(),
-        userId: demoUserId(),
-        studentName: demoUserName(),
-        studentEmail: demoUserEmail(),
-        status: 'pending',
-        bookedAt: new Date().toISOString(),
+      const booking  = {
+        ...bookingData, id: Date.now(), userId: demoUserId(),
+        studentName: demoUserName(), studentEmail: demoUserEmail(),
+        status: 'pending', bookedAt: new Date().toISOString(),
       };
       lsSet('bookings', [...bookings, booking]);
-      // update room count
-      if (bookingData.roomTypeId) {
-        await this.updateRoomAvailability(bookingData.hostelId, bookingData.roomTypeId, 1);
-      }
+      if (bookingData.roomTypeId) await this.updateRoomAvailability(bookingData.hostelId, bookingData.roomTypeId, 1);
       return booking;
     }
     const data = await http('POST', '/api/bookings', bookingData);
@@ -241,36 +253,32 @@ export const dataService = {
       return ls('bookings', []).filter(b => b.userId === uid);
     }
     const data = await http('GET', '/api/bookings/user');
-    return data.data || [];
+    return (data.data || []).map(normaliseBooking);
   },
 
   async getHostelBookings(hostelId) {
-    if (DEMO_MODE) {
-      return ls('bookings', []).filter(b => b.hostelId === parseInt(hostelId));
-    }
-    const data = await http('GET', `/api/bookings/hostel?hostel_id=${hostelId}`);
-    return data.data || [];
+    if (DEMO_MODE) return ls('bookings', []).filter(b => b.hostelId === parseInt(hostelId));
+    const data = await http('GET', `/api/bookings?hostel_id=${hostelId}`);
+    return (data.data || []).map(normaliseBooking);
   },
 
   async getOwnerBookings() {
     if (DEMO_MODE) {
       const myHostels = await this.getMyHostels();
-      const myIds = myHostels.map(h => h.id);
+      const myIds     = myHostels.map(h => h.id);
       return ls('bookings', []).filter(b => myIds.includes(b.hostelId));
     }
     const data = await http('GET', '/api/bookings/owner');
-    return data.data || [];
+    return (data.data || []).map(normaliseBooking);
   },
 
   async cancelBooking(id) {
     if (DEMO_MODE) {
       const bookings = ls('bookings', []);
-      const booking = bookings.find(b => b.id === id);
-      const updated = bookings.map(b => b.id === id ? { ...b, status: 'cancelled' } : b);
+      const booking  = bookings.find(b => b.id === id);
+      const updated  = bookings.map(b => b.id === id ? { ...b, status: 'cancelled' } : b);
       lsSet('bookings', updated);
-      if (booking?.roomTypeId) {
-        await this.updateRoomAvailability(booking.hostelId, booking.roomTypeId, -1);
-      }
+      if (booking?.roomTypeId) await this.updateRoomAvailability(booking.hostelId, booking.roomTypeId, -1);
       return updated.find(b => b.id === id);
     }
     const data = await http('PUT', `/api/bookings/${id}`, { status: 'cancelled' });
@@ -280,7 +288,7 @@ export const dataService = {
   async updateBookingStatus(id, status) {
     if (DEMO_MODE) {
       const bookings = ls('bookings', []);
-      const updated = bookings.map(b => b.id === parseInt(id) ? { ...b, status } : b);
+      const updated  = bookings.map(b => b.id === parseInt(id) ? { ...b, status } : b);
       lsSet('bookings', updated);
       return updated.find(b => b.id === parseInt(id));
     }
@@ -290,17 +298,23 @@ export const dataService = {
 
   // ── REVIEWS ─────────────────────────────────────────────────────────────────
   async getHostelReviews(hostelId) {
-    if (DEMO_MODE) {
-      return ls('reviews', []).filter(r => r.hostelId === parseInt(hostelId));
-    }
+    if (DEMO_MODE) return ls('reviews', []).filter(r => r.hostelId === parseInt(hostelId));
     const data = await http('GET', `/api/reviews?hostel_id=${hostelId}`);
-    return data.data || [];
+    return (data.data || []).map(r => ({
+      ...r,
+      hostelId:        r.hostel_id    ?? r.hostelId,
+      userId:          r.user_id      ?? r.userId,
+      userName:        r.user_name    ?? r.userName,
+      categoryRatings: r.category_ratings ?? r.categoryRatings ?? {},
+      createdAt:       r.created_at   ?? r.createdAt,
+      updatedAt:       r.updated_at   ?? r.updatedAt,
+    }));
   },
 
   async getUserReview(hostelId) {
-    const uid = demoUserId();
+    const uid     = DEMO_MODE ? demoUserId() : JSON.parse(localStorage.getItem('session'))?.user?.id;
     const reviews = await this.getHostelReviews(hostelId);
-    return reviews.find(r => r.userId === uid) || null;
+    return reviews.find(r => (r.userId || r.user_id) === uid) || null;
   },
 
   async createReview(hostelId, reviewData) {
@@ -308,14 +322,10 @@ export const dataService = {
       const existing = await this.getUserReview(hostelId);
       if (existing) throw new Error('You have already reviewed this hostel');
       const reviews = ls('reviews', []);
-      const review = {
-        ...reviewData,
-        id: `rev_${Date.now()}`,
-        hostelId: parseInt(hostelId),
-        userId: demoUserId(),
-        userName: demoUserName(),
-        createdAt: new Date().toISOString(),
-        updatedAt: null,
+      const review  = {
+        ...reviewData, id: `rev_${Date.now()}`,
+        hostelId: parseInt(hostelId), userId: demoUserId(),
+        userName: demoUserName(), createdAt: new Date().toISOString(), updatedAt: null,
       };
       lsSet('reviews', [...reviews, review]);
       return review;
@@ -327,9 +337,7 @@ export const dataService = {
   async updateReview(reviewId, updates) {
     if (DEMO_MODE) {
       const reviews = ls('reviews', []);
-      const updated = reviews.map(r =>
-        r.id === reviewId ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r
-      );
+      const updated = reviews.map(r => r.id === reviewId ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r);
       lsSet('reviews', updated);
       return updated.find(r => r.id === reviewId);
     }
@@ -339,30 +347,22 @@ export const dataService = {
 
   async deleteReview(reviewId) {
     if (DEMO_MODE) {
-      const reviews = ls('reviews', []);
-      lsSet('reviews', reviews.filter(r => r.id !== reviewId));
+      lsSet('reviews', ls('reviews', []).filter(r => r.id !== reviewId));
       return true;
     }
     await http('DELETE', `/api/reviews/${reviewId}`);
     return true;
   },
 
-  // ── FAVORITES ───────────────────────────────────────────────────────────────
-  getFavorites() {
-    return ls('favorites', []);
-  },
-
-  isFavorite(hostelId) {
-    return this.getFavorites().includes(hostelId);
-  },
-
+  // ── FAVORITES (always localStorage — not critical for backend) ───────────────
+  getFavorites()          { return ls('favorites', []); },
+  isFavorite(hostelId)    { return this.getFavorites().includes(hostelId); },
   toggleFavorite(hostelId) {
     const favs = this.getFavorites();
-    const next = favs.includes(hostelId) ? favs.filter(id => id !== hostelId) : [...favs, hostelId];
+    const next  = favs.includes(hostelId) ? favs.filter(id => id !== hostelId) : [...favs, hostelId];
     lsSet('favorites', next);
     return next;
   },
-
   removeFavorite(hostelId) {
     const next = this.getFavorites().filter(id => id !== hostelId);
     lsSet('favorites', next);
@@ -370,81 +370,113 @@ export const dataService = {
   },
 
   // ── USER PROFILE ─────────────────────────────────────────────────────────────
-  getProfile() {
-    const session = (() => { try { return JSON.parse(localStorage.getItem('session')); } catch { return null; } })();
-    const stored = ls('userProfile', null) || {};
-    return {
-      userId: demoUserId(),
-      name: stored.name || demoUserName(),
-      email: stored.email || demoUserEmail(),
-      phone: stored.phone || '',
-      university: stored.university || 'CUSAT',
-      yearOfStudy: stored.yearOfStudy || '',
-      bio: stored.bio || '',
-      avatar: stored.avatar || null,
-      role: localStorage.getItem('userRole') || 'student',
-      preferences: stored.preferences || {
-        hostelType: 'All',
-        maxBudget: 6000,
-        maxDistance: 5,
-        requiredAmenities: [],
-      },
-      createdAt: session?.user?.created_at || stored.createdAt || new Date().toISOString(),
-    };
+  async getProfile() {
+    if (DEMO_MODE) {
+      const stored = ls('userProfile', null) || {};
+      return {
+        userId: demoUserId(), name: stored.name || demoUserName(),
+        email: stored.email || demoUserEmail(), phone: stored.phone || '',
+        university: stored.university || 'CUSAT', yearOfStudy: stored.yearOfStudy || '',
+        bio: stored.bio || '', avatar: stored.avatar || null,
+        role: localStorage.getItem('userRole') || 'student',
+        preferences: stored.preferences || { hostelType: 'All', maxBudget: 6000, maxDistance: 5, requiredAmenities: [] },
+      };
+    }
+    try {
+      const data = await http('GET', '/api/profiles');
+      const p    = data.data || {};
+      return {
+        userId:      p.id,
+        name:        p.full_name,
+        email:       p.email,
+        phone:       p.phone || '',
+        university:  p.university || 'CUSAT',
+        yearOfStudy: p.year_of_study || '',
+        bio:         p.bio || '',
+        avatar:      p.avatar_url || null,
+        role:        p.role || localStorage.getItem('userRole') || 'student',
+        preferences: p.preferences || { hostelType: 'All', maxBudget: 6000, maxDistance: 5, requiredAmenities: [] },
+      };
+    } catch { return {}; }
   },
 
-  updateProfile(updates) {
-    const current = this.getProfile();
-    const merged = { ...current, ...updates };
-    lsSet('userProfile', merged);
-    // Also update session display name
-    try {
-      const session = JSON.parse(localStorage.getItem('session'));
-      if (session?.user?.user_metadata && updates.name) {
-        session.user.user_metadata.full_name = updates.name;
-        localStorage.setItem('session', JSON.stringify(session));
-      }
-    } catch { /* ignore */ }
-    return merged;
+  async updateProfile(updates) {
+    if (DEMO_MODE) {
+      const current = ls('userProfile', {});
+      const merged  = { ...current, ...updates };
+      lsSet('userProfile', merged);
+      try {
+        const session = JSON.parse(localStorage.getItem('session'));
+        if (session?.user?.user_metadata && updates.name) {
+          session.user.user_metadata.full_name = updates.name;
+          localStorage.setItem('session', JSON.stringify(session));
+        }
+      } catch { /* ignore */ }
+      return merged;
+    }
+    // Map frontend camelCase → DB snake_case
+    const payload = {};
+    if (updates.name        !== undefined) payload.full_name      = updates.name;
+    if (updates.phone       !== undefined) payload.phone          = updates.phone;
+    if (updates.university  !== undefined) payload.university     = updates.university;
+    if (updates.yearOfStudy !== undefined) payload.year_of_study  = updates.yearOfStudy;
+    if (updates.bio         !== undefined) payload.bio            = updates.bio;
+    if (updates.avatar      !== undefined) payload.avatar_url     = updates.avatar;
+    if (updates.preferences !== undefined) payload.preferences    = updates.preferences;
+    const data = await http('PUT', '/api/profiles', payload);
+    return data.data;
   },
 
   // ── NOTIFICATIONS ────────────────────────────────────────────────────────────
-  getNotifications() {
-    return ls('notifications', []);
+  async getNotifications() {
+    if (DEMO_MODE) return ls('notifications', []);
+    try {
+      const data = await http('GET', '/api/notifications');
+      return (data.data || []).map(n => ({
+        ...n,
+        read:      n.read,
+        createdAt: n.created_at ?? n.createdAt,
+      }));
+    } catch { return []; }
   },
 
-  addNotification({ type, title, message, link = null }) {
-    const notifs = ls('notifications', []);
-    const notif = {
-      id: `notif_${Date.now()}`,
-      type,
-      title,
-      message,
-      link,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    lsSet('notifications', [notif, ...notifs].slice(0, 50)); // keep max 50
-    return notif;
+  async addNotification({ type, title, message, link = null, userId = null }) {
+    if (DEMO_MODE) {
+      const notifs = ls('notifications', []);
+      const notif  = { id: `notif_${Date.now()}`, type, title, message, link, read: false, createdAt: new Date().toISOString() };
+      lsSet('notifications', [notif, ...notifs].slice(0, 50));
+      return notif;
+    }
+    try {
+      const data = await http('POST', '/api/notifications', { userId, type, title, message, link });
+      return data.data;
+    } catch { return null; }
   },
 
-  markNotificationRead(id) {
-    const notifs = ls('notifications', []);
-    lsSet('notifications', notifs.map(n => n.id === id ? { ...n, read: true } : n));
+  async markNotificationRead(id) {
+    if (DEMO_MODE) {
+      lsSet('notifications', ls('notifications', []).map(n => n.id === id ? { ...n, read: true } : n));
+      return;
+    }
+    try { await http('PUT', `/api/notifications/${id}`, {}); } catch { /* ignore */ }
   },
 
-  markAllNotificationsRead() {
-    const notifs = ls('notifications', []);
-    lsSet('notifications', notifs.map(n => ({ ...n, read: true })));
+  async markAllNotificationsRead() {
+    if (DEMO_MODE) {
+      lsSet('notifications', ls('notifications', []).map(n => ({ ...n, read: true })));
+      return;
+    }
+    try { await http('PUT', '/api/notifications/all', { markAll: true }); } catch { /* ignore */ }
   },
 
-  getUnreadCount() {
-    return ls('notifications', []).filter(n => !n.read).length;
+  async getUnreadCount() {
+    const notifs = await this.getNotifications();
+    return notifs.filter(n => !n.read).length;
   },
 
   // ── UTILS ────────────────────────────────────────────────────────────────────
   generateBookingId: () => `BK${Date.now().toString(36).toUpperCase()}`,
-  generateTxnId: () => `TXN${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+  generateTxnId:    () => `TXN${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
 };
 
 export default dataService;

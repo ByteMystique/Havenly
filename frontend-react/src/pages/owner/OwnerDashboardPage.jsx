@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dataService } from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
+import Header from '../../components/Header';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -56,7 +57,9 @@ export default function OwnerDashboardPage() {
   };
 
   return (
-    <div className="owner-page">
+    <>
+      <Header />
+      <div className="owner-page">
       <div className="owner-page__header">
         <div>
           <h1>Welcome back, {displayName} 👋</h1>
@@ -144,6 +147,7 @@ export default function OwnerDashboardPage() {
         <button className="quick-action-btn" onClick={() => navigate('/owner/bookings')}>📋 All Bookings</button>
         <button className="quick-action-btn" onClick={() => navigate('/hostels')}>👁 View Public Listing</button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

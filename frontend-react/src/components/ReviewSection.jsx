@@ -128,7 +128,7 @@ export default function ReviewSection({ hostelId, hostelName }) {
   };
 
   const handleDelete = async (reviewId) => {
-    if (!window.confirm('Delete your review?')) return;
+    // Delete review directly
     await dataService.deleteReview(reviewId);
     toast.info('Deleted', 'Your review has been removed', 2000);
     loadReviews();

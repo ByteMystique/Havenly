@@ -52,7 +52,7 @@ export default function BookingModal({ hostel, isOpen, onClose }) {
       roomTypeId,
       requests: specialRequests,
       totalAmount: total,
-      studentName: dataService.getProfile()?.name || 'Student',
+      studentName: (() => { try { return JSON.parse(localStorage.getItem('session'))?.user?.user_metadata?.full_name || 'Student'; } catch { return 'Student'; } })(),
     };
     setFormData(data);
     setShowPayment(true);

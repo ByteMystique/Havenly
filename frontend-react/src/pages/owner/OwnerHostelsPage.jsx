@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dataService } from '../../services/dataService';
 import { useToast } from '../../context/ToastContext';
+import Header from '../../components/Header';
 
 export default function OwnerHostelsPage() {
   const navigate = useNavigate();
@@ -18,19 +19,21 @@ export default function OwnerHostelsPage() {
   };
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
     await dataService.deleteHostel(id);
     toast.success('Deleted', `${name} removed`, 2000);
     load();
   };
 
   return (
-    <div className="owner-page">
-      <div className="owner-page__header">
-        <div>
-          <h1>My Hostels</h1>
-          <p>{hostels.length} listing{hostels.length !== 1 ? 's' : ''}</p>
-        </div>
+    <>
+      <Header />
+      <div className="owner-page">
+        <div className="owner-page__header">
+          <div>
+            <button className="back-btn" onClick={() => navigate('/owner/dashboard')} style={{marginBottom:8}}>← Dashboard</button>
+            <h1>My Hostels</h1>
+            <p>{hostels.length} listing{hostels.length !== 1 ? 's' : ''}</p>
+          </div>
         <button className="btn-add-hostel" onClick={() => navigate('/owner/hostels/new')}>+ Add Hostel</button>
       </div>
 
@@ -74,6 +77,7 @@ export default function OwnerHostelsPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

@@ -1,15 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import hostels from '../data/hostels';
-
-// Derive unique amenities from actual hostel data
-const allAmenities = [...new Set(hostels.flatMap((h) => h.amenities))].sort();
-const amenityCounts = Object.fromEntries(
-  allAmenities.map((a) => [a, hostels.filter((h) => h.amenities.includes(a)).length])
-);
+import { dataService } from '../services/dataService';
 
 const hostelTypes = ['All', 'Gents', 'Ladies', 'Mixed'];
+
+// DB type → display type mapping
+const typeDisplayMap = { boys: 'Gents', girls: 'Ladies', 'co-ed': 'Mixed' };
 
 function getRatingLabel(rating) {
   if (rating >= 4.5) return 'Exceptional';
@@ -40,6 +37,8 @@ function TypeBadge({ type }) {
 
 export default function HostelsPage() {
   const navigate = useNavigate();
+  const [hostels, setHostels] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [maxPrice, setMaxPrice] = useState(9000);
   const [maxDistance, setMaxDistance] = useState('all');
@@ -50,6 +49,30 @@ export default function HostelsPage() {
   const [minRating, setMinRating] = useState(0);
   const [viewMode, setViewMode] = useState('list');
   const [compareIds, setCompareIds] = useState([]);
+
+  // Load hostels from Supabase (or static in demo mode)
+  useEffect(() => {
+    dataService.getHostels().then(data => {
+      // Normalise DB type (boys/girls/co-ed) → display (Gents/Ladies/Mixed)
+      const normalised = data.map(h => ({
+        ...h,
+        hostelType: h.hostelType || typeDisplayMap[h.type] || h.type || 'Gents',
+        amenities: h.amenities || [],
+        safetyScore: h.safetyScore ?? h.safety_score ?? null,
+        ratingCount: h.ratingCount ?? h.rating_count ?? 0,
+        distance: h.distance ?? 0,
+        price: h.price ?? 0,
+      }));
+      setHostels(normalised);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  // Derived amenity data
+  const allAmenities = useMemo(() => [...new Set(hostels.flatMap(h => h.amenities))].sort(), [hostels]);
+  const amenityCounts = useMemo(() => Object.fromEntries(
+    allAmenities.map(a => [a, hostels.filter(h => h.amenities.includes(a)).length])
+  ), [hostels, allAmenities]);
 
   const toggleAmenity = (amenity) => {
     setSelectedAmenities((prev) =>
@@ -295,7 +318,7 @@ export default function HostelsPage() {
                   height="500"
                   style={{ border: 0, borderRadius: 8 }}
                   loading="lazy"
-                  src={`https://www.google.com/maps/embed/v1/search?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=hostels+near+CUSAT+Kalamassery&zoom=14`}
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=76.2900%2C10.0350%2C76.3300%2C10.0650&layer=mapnik&marker=10.0494%2C76.3083"
                 />
                 <div className="map-results-mini">
                   {filtered.slice(0, 20).map((hostel) => (

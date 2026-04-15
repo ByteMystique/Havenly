@@ -26,11 +26,9 @@ export default function Header() {
 
   const handleLogout = () => {
     closeAll();
-    if (window.confirm('Are you sure you want to logout?')) {
-      toast.info('Goodbye!', 'You have been logged out.', 2000);
-      logout();
-      setTimeout(() => navigate('/'), 400);
-    }
+    toast.info('Goodbye!', 'You have been logged out.', 2000);
+    logout();
+    setTimeout(() => navigate('/'), 300);
   };
 
   // Initials avatar
@@ -101,13 +99,13 @@ export default function Header() {
                         <div className="user-dropdown__role">{isOwner ? '🏠 Owner' : '🎓 Student'}</div>
                       </div>
                     </div>
-                    <Link to="/profile" className="user-dropdown__item" onClick={closeAll}>👤 Profile</Link>
+                    <Link to="/profile" className="user-dropdown__item" onClick={closeAll} style={{color:'inherit',display:'flex',alignItems:'center',gap:'8px'}}>👤 <span>Profile</span></Link>
                     {isOwner
-                      ? <Link to="/owner/dashboard" className="user-dropdown__item" onClick={closeAll}>📊 Dashboard</Link>
-                      : <Link to="/dashboard" className="user-dropdown__item" onClick={closeAll}>📊 Dashboard</Link>
+                      ? <Link to="/owner/dashboard" className="user-dropdown__item" onClick={closeAll} style={{color:'inherit',display:'flex',alignItems:'center',gap:'8px'}}>📊 <span>Dashboard</span></Link>
+                      : <Link to="/dashboard" className="user-dropdown__item" onClick={closeAll} style={{color:'inherit',display:'flex',alignItems:'center',gap:'8px'}}>📊 <span>Dashboard</span></Link>
                     }
-                    <button className="user-dropdown__item user-dropdown__item--danger" onClick={handleLogout}>
-                      🚪 Logout
+                    <button className="user-dropdown__item user-dropdown__item--danger" onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:'8px',width:'100%'}}>
+                      🚪 <span>Logout</span>
                     </button>
                   </div>
                 )}

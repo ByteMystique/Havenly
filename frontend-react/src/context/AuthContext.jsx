@@ -9,28 +9,27 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userId, setUserId] = useState('');
-  const [userRole, setUserRole] = useState('student');
-  const [isLoading, setIsLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
+  const [isLoggedIn,  setIsLoggedIn]  = useState(false);
+  const [userName,    setUserName]    = useState('');
+  const [userEmail,   setUserEmail]   = useState('');
+  const [userId,      setUserId]      = useState('');
+  const [userRole,    setUserRole]    = useState('student');
+  const [isLoading,   setIsLoading]   = useState(true);
+  const [authError,   setAuthError]   = useState(null);
 
-  // Initialize from stored session on mount
+  // Restore session from localStorage on mount
   useEffect(() => {
-    const session = localStorage.getItem('session');
-    if (session) {
+    const raw = localStorage.getItem('session');
+    if (raw) {
       try {
-        const parsed = JSON.parse(session);
+        const parsed = JSON.parse(raw);
         if (parsed.user?.email) {
           setUserEmail(parsed.user.email);
           setUserName(parsed.user.user_metadata?.full_name || '');
           setUserId(parsed.user.id || '');
           setIsLoggedIn(true);
         }
-      } catch (error) {
-        console.error('Failed to restore session:', error);
+      } catch {
         localStorage.removeItem('session');
       }
     }
@@ -44,13 +43,19 @@ export function AuthProvider({ children }) {
     try {
       const data = await apiClient.login(email, password);
       apiClient.setToken(data.session);
-      const resolvedRole = role || localStorage.getItem('userRole') || 'student';
+
+      // Use role returned from server (from profiles table) if present, else use what user selected
+      const serverRole   = data.role || data.session?.user?.user_metadata?.role;
+      const resolvedRole = serverRole || role || localStorage.getItem('userRole') || 'student';
+
       localStorage.setItem('userRole', resolvedRole);
+
       setUserEmail(data.session.user?.email || email);
       setUserName(data.session.user?.user_metadata?.full_name || '');
       setUserId(data.session.user?.id || '');
       setUserRole(resolvedRole);
       setIsLoggedIn(true);
+
       // Welcome notification (deferred so NotificationContext is mounted)
       setTimeout(() => {
         dataService.addNotification({
@@ -59,8 +64,9 @@ export function AuthProvider({ children }) {
           message: `Good to see you again, ${data.session.user?.user_metadata?.full_name || email.split('@')[0]}!`,
           link: resolvedRole === 'owner' ? '/owner/dashboard' : '/hostels',
         });
-      }, 100);
-      return data;
+      }, 300);
+
+      return { ...data, role: resolvedRole };
     } catch (error) {
       const message = error.message || 'Login failed';
       setAuthError(message);
@@ -71,18 +77,21 @@ export function AuthProvider({ children }) {
   const signup = useCallback(async (email, password, name, role = 'student') => {
     setAuthError(null);
     try {
-      const data = await apiClient.signup(email, password, name);
+      const data = await apiClient.signup(email, password, name, role);
+
       if (data.session) {
         apiClient.setToken(data.session);
         setIsLoggedIn(true);
       }
+
       const resolvedRole = role || localStorage.getItem('userRole') || 'student';
       localStorage.setItem('userRole', resolvedRole);
+
       setUserEmail(data.session?.user?.email || data.user?.email || email);
       setUserName(name || data.session?.user?.user_metadata?.full_name || '');
       setUserId(data.session?.user?.id || data.user?.id || '');
       setUserRole(resolvedRole);
-      // Welcome notification
+
       setTimeout(() => {
         dataService.addNotification({
           type: 'welcome',
@@ -90,7 +99,8 @@ export function AuthProvider({ children }) {
           message: 'Your account is ready. Start exploring hostels near CUSAT.',
           link: '/hostels',
         });
-      }, 100);
+      }, 300);
+
       return data;
     } catch (error) {
       const message = error.message || 'Signup failed';
@@ -109,25 +119,14 @@ export function AuthProvider({ children }) {
     setAuthError(null);
   }, []);
 
-  const isOwner = userRole === 'owner';
+  const isOwner    = userRole === 'owner';
   const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'User');
 
   return (
     <AuthContext.Provider
       value={{
-        isLoggedIn,
-        userName,
-        userEmail,
-        userId,
-        userRole,
-        isOwner,
-        displayName,
-        login,
-        signup,
-        logout,
-        isLoading,
-        authError,
-        setAuthError,
+        isLoggedIn, userName, userEmail, userId, userRole, isOwner,
+        displayName, login, signup, logout, isLoading, authError, setAuthError,
         isDemoMode: apiClient.isDemoMode(),
       }}
     >

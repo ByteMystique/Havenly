@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../components/Header';
 import BookingModal from '../components/BookingModal';
 import ImageGallery from '../components/ImageGallery';
-import RoomAvailability from '../components/RoomAvailability';
 import ReviewSection from '../components/ReviewSection';
 import { dataService } from '../services/dataService';
 import { getAmenityIcon } from '../utils/helpers';
@@ -86,6 +85,10 @@ export default function HostelDetailPage() {
       window.open(`https://www.google.com/maps/place/?q=place_id:${hostel.googleMapsId}`, '_blank');
     } else if (hostel.latitude && hostel.longitude) {
       window.open(`https://www.google.com/maps/@${hostel.latitude},${hostel.longitude},17z`, '_blank');
+    } else {
+      // Fall back to address search — works for all hostels
+      const query = encodeURIComponent(`${hostel.name}, ${hostel.address || 'CUSAT Kalamassery, Kochi'}`);
+      window.open(`https://www.google.com/maps/search/${query}`, '_blank');
     }
   };
 
@@ -175,9 +178,6 @@ export default function HostelDetailPage() {
                 </div>
               </div>
 
-              {/* Room Availability */}
-              <RoomAvailability hostelId={hostel.id} />
-
               {/* Amenities */}
               <div className="amenities-section">
                 <h2>Amenities</h2>
@@ -204,9 +204,7 @@ export default function HostelDetailPage() {
                   </button>
                 )}
                 <button className="btn-secondary" onClick={contactHostel}>Contact Hostel</button>
-                {(hostel.googleMapsId || (hostel.latitude && hostel.longitude)) && (
-                  <button className="btn-outline" onClick={openGoogleMaps}>📍 View on Google Maps</button>
-                )}
+                <button className="btn-outline" onClick={openGoogleMaps}>📍 View on Google Maps</button>
               </div>
 
               {/* Reviews */}
